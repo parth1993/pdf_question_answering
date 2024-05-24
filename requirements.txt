@@ -1,0 +1,7 @@
+PyPDF2
+openai
+slack_sdk
+PyMuPDF
+httpx
+python-dotenv
+faiss-cpu
