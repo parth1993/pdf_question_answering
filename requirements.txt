@@ -1,7 +1,7 @@
-PyPDF2
+langchain
 openai
 slack_sdk
-PyMuPDF
-httpx
 python-dotenv
-faiss-cpu
+scipy
+tiktoken
+pandas
