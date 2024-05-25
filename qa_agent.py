@@ -1,9 +1,10 @@
-from openai import OpenAI
-import pandas as pd  
-import tiktoken
 import ast
-from scipy import spatial  
+
+import pandas as pd
+import tiktoken
 from dotenv import load_dotenv
+from openai import OpenAI
+from scipy import spatial
 
 load_dotenv()
 
@@ -12,9 +13,10 @@ BATCH_SIZE = 1000
 EMBEDDING_MODEL = "text-embedding-ada-002"
 GPT_MODEL = "gpt-3.5-turbo-0125"
 
+
 class OpenAILLM:
 
-    def _generate_embeddings(self, texts:str) -> pd.DataFrame:  
+    def _generate_embeddings(self, texts: str) -> pd.DataFrame:
         embeddings = []
         for batch_start in range(0, len(texts), BATCH_SIZE):
             batch_end = batch_start + BATCH_SIZE
@@ -22,7 +24,9 @@ class OpenAILLM:
             print(f"Batch {batch_start} to {batch_end-1}")
             response = client.embeddings.create(model=EMBEDDING_MODEL, input=batch)
             for i, be in enumerate(response.data):
-                assert i == be.index  # double check embeddings are in same order as input
+                assert (
+                    i == be.index
+                )  # double check embeddings are in same order as input
             batch_embeddings = [e.embedding for e in response.data]
             embeddings.extend(batch_embeddings)
 
@@ -30,10 +34,11 @@ class OpenAILLM:
         return df
 
     def _strings_ranked_by_relatedness(
+        self,
         query: str,
         df: pd.DataFrame,
         relatedness_fn=lambda x, y: 1 - spatial.distance.cosine(x, y),
-        top_n: int = 100
+        top_n: int = 100,
     ) -> tuple[list[str], list[float]]:
         """Returns a list of strings and relatednesses, sorted from most related to least."""
         query_embedding_response = client.embeddings.create(
@@ -55,11 +60,7 @@ class OpenAILLM:
         return len(encoding.encode(text))
 
     def _query_message(
-        self,
-        query: str,
-        df: pd.DataFrame,
-        model: str,
-        token_budget: int
+        self, query: str, df: pd.DataFrame, model: str, token_budget: int
     ) -> str:
         """Return a message for GPT, with relevant source texts pulled from a dataframe."""
         strings, relatednesses = self._strings_ranked_by_relatedness(query, df)
@@ -86,7 +87,6 @@ class OpenAILLM:
         print_message: bool = False,
     ) -> str:
         """Answers a query using GPT and a dataframe of relevant texts and embeddings."""
-        df = self._generate_embeddings()
         message = self._query_message(query, df, model=model, token_budget=token_budget)
         if print_message:
             print(message)
@@ -95,29 +95,27 @@ class OpenAILLM:
             {"role": "user", "content": message},
         ]
         response = client.chat.completions.create(
-            model=model,
-            messages=messages,
-            temperature=0
+            model=model, messages=messages, temperature=0
         )
         response_message = response.choices[0].message.content
         return response_message
-    
+
     def get_answers_from_text(
-        self, 
-        text: str, 
-        questions:list[str], 
-        embeddings: bool = False,
+        self,
+        questions: list[str],
+        text: str = None,
         path_to_embeddings: str = None,
-        ) -> str:
-        if not embeddings:
+    ) -> str:
+        if not path_to_embeddings:
             df = self._generate_embeddings(texts=text)
         else:
+            print(f"Loading embeddings from {path_to_embeddings}")
             df = pd.read_csv(path_to_embeddings)
             # convert embeddings from CSV str type back to list type
-            df['embedding'] = df['embedding'].apply(list)
-        
+            df["embedding"] = df["embedding"].apply(ast.literal_eval)
+
         results = {}
         for question in questions:
-            answer = self._ask(query=question, df=df)
+            answer = self._ask(query=question.strip(), df=df)
             results[question] = answer
         return results
